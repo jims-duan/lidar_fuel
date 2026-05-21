@@ -1,0 +1,106 @@
+<launch>
+  <!-- 设置三维地图尺寸，x方向长度为60米 -->
+  <arg name="map_size_x" value="60.0"/>
+  <!-- 设置三维地图尺寸，y方向长度为60米 -->
+  <arg name="map_size_y" value="60.0"/>
+  <!-- 设置三维地图尺寸，z方向高度为10米 -->
+  <arg name="map_size_z" value=" 10.0"/>
+
+  <!-- 设置无人机起始位置的x坐标为0 -->
+  <arg name="init_x" value="0"/>
+  <!-- 设置无人机起始位置的y坐标为0 -->
+  <arg name="init_y" value="0"/>
+  <!-- 设置无人机起始位置的z坐标为0 -->
+  <arg name="init_z" value="0.4"/> 
+
+  <!-- 配置无人机所使用的里程计(odom)话题, 默认是"/odom" -->
+  <arg name="odom_topic" value="/odom" />
+  <!-- 备用配置: 可以切换到UKF状态估计的odom话题，如果需要的话 -->
+  <!-- <arg name="odom_topic" value="/state_ukf/odom" /> -->
+
+  <!-- 加载主算法参数配置，引用algorithm.xml文件并传递相关参数 -->
+  <include file="$(find exploration_manager)/launch/algorithm.xml">
+
+    <!-- 将地图的x维长传递给algorithm.xml中的相关参数 -->
+    <arg name="map_size_x_" value="$(arg map_size_x)"/>
+    <!-- 将地图的y维长传递给algorithm.xml中的相关参数 -->
+    <arg name="map_size_y_" value="$(arg map_size_y)"/>
+    <!-- 将地图的z维高传递给algorithm.xml中的相关参数 -->
+    <arg name="map_size_z_" value="$(arg map_size_z)"/>
+
+    <!-- 定义探索区域的最小x边界为-30米，限制无人机活动范围 -->
+    <arg name="box_min_x" value="-30.0"/>
+    <!-- 定义探索区域的最小y边界为-30米，限制无人机活动范围 -->
+    <arg name="box_min_y" value="-30.0"/>
+    <!-- 定义探索区域的最小z边界为-0.5米 -->
+    <arg name="box_min_z" value="-0.5"/>
+
+    <!-- 定义探索区域的最大x边界为30米 -->
+    <arg name="box_max_x" value="30.0"/>
+    <!-- 定义探索区域的最大y边界为30米 -->
+    <arg name="box_max_y" value="30.0"/>
+    <!-- 定义探索区域的最大z边界为5米 -->
+    <arg name="box_max_z" value="1.4"/>
+    <!-- 向算法传递选定的里程计话题作为odometry_topic参数 -->
+    <arg name="odometry_topic" value="$(arg odom_topic)"/>
+    <!-- 传感器位姿话题，用于提供相机（传感器）坐标系在世界下的变换 -->
+    <arg name="sensor_pose_topic" value="/sensor_pose"/>
+    <!-- 备用的传感器位姿话题，如果更换渲染节点，可以取消注释使用 -->
+    <!-- <arg name="sensor_pose_topic" value="/pcl_render_node/sensor_pose"/> -->
+    <!-- 深度相机图像的话题名，分辨率默认是640x480 -->
+    <!-- 点云话题配置，如果有点云测量可以填写相应话题，否则只设置其中一个 -->
+    <!-- <arg name="depth_topic" value="/pcl_render_node/depth"/> -->
+    <arg name="depth_topic" value="no"/>
+    <!-- 仿真环境下的深度图像话题举例，供参考 -->
+    <!-- /iris/camera/depth/image_raw -->
+    <!-- 如果不使用点云数据，cloud_topic设置为no -->
+    <arg name="cloud_topic" value="/cloud_registered"/>
+
+    <!-- 以下是深度相机内参，不同相机配置请填入真实内参 -->
+    <arg name="cx" value="322.05"/>      <!-- 你的实际值 -->
+    <arg name="cy" value="200.78"/>      <!-- 你的实际值 -->
+    <arg name="fx" value="475.71"/>      <!-- 你的实际值 -->
+    <arg name="fy" value="475.71"/>      <!-- 你的实际值 -->
+
+    <!-- 设置无人机的最大速度（单位：米/秒） -->
+    <arg name="max_vel" value="0.8" />
+    <!-- 设置无人机的最大加速度（单位：米/秒^2） -->
+    <arg name="max_acc" value="1.5" />
+  </include>
+
+  <!-- 轨迹服务节点，负责输出轨迹命令供执行器使用 -->
+  <node pkg="plan_manage" name="traj_server" type="traj_server" output="screen">
+    <!-- 重映射轨迹命令的输出话题，将原"/position_cmd"重定向到"planning/pos_cmd" -->
+    <remap from="/position_cmd" to="planning/pos_cmd"/>
+    <!-- 重映射odom_world话题为当前配置的odom_topic（通常为"/odom"） -->
+    <remap from="/odom_world" to="$(arg odom_topic)"/>
+    <!-- 轨迹服务器向前推算的规划时间 -->
+    <param name="traj_server/time_forward" value="1.5" type="double"/>
+    <!-- 轨迹发布的ID，可用于下游组件对轨迹来源做区分 -->
+    <param name="traj_server/pub_traj_id" value="4" type="int"/>
+    <!-- 以下三项分别配置轨迹服务器的初始x, y, z参数，与无人机初始位置一致 -->
+    <param name="traj_server/init_x" value="$(arg init_x)" type="double"/>
+    <param name="traj_server/init_y" value="$(arg init_y)" type="double"/>
+    <param name="traj_server/init_z" value="$(arg init_z)" type="double"/>
+
+    <!-- 感知模块参数配置，影响可视角度和距离等 -->
+    <param name="perception_utils/top_angle" value="0.56125" type="double"/>
+    <param name="perception_utils/left_angle" value="0.69222" type="double"/>
+    <param name="perception_utils/right_angle" value="0.68901" type="double"/>
+    <param name="perception_utils/max_dist" value="4.5" type="double"/>
+    <param name="perception_utils/vis_dist" value="1.0" type="double"/>
+  </node>
+
+  <!-- 航点生成节点，负责根据当前状态与目标生成航点 -->
+  <node pkg="waypoint_generator" name="waypoint_generator" type="waypoint_generator" output="screen">
+    <!-- 将waypoint_generator节点内部的odom重映射为设定的odom_topic -->
+    <remap from="~odom" to="$(arg odom_topic)"/>        
+    <!-- 将收到的导航目标（goal）话题重映射到move_base_simple/goal -->
+    <remap from="~goal" to="/move_base_simple/goal"/>
+    <!-- 将轨迹启动触发信号重映射到全局的/traj_start_trigger -->
+    <remap from="~traj_start_trigger" to="/traj_start_trigger" />
+    <!-- 设置航点的类型，这里使用点(point)的类型 -->
+    <param name="waypoint_type" value="point"/>    
+  </node>
+
+</launch>

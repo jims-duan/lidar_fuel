@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+    <node pkg="odom_converter" 
+          type="odom_converter_node" 
+          name="odom_converter_node" 
+          output="screen">
+        
+    </node>
+</launch>
