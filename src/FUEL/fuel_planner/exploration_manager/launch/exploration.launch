@@ -4,7 +4,7 @@
   <!-- 设置三维地图尺寸，y方向长度为60米 -->
   <arg name="map_size_y" value="60.0"/>
   <!-- 设置三维地图尺寸，z方向高度为10米 -->
-  <arg name="map_size_z" value=" 10.0"/>
+  <arg name="map_size_z" value=" 15.0"/>
 
   <!-- 设置无人机起始位置的x坐标为0 -->
   <arg name="init_x" value="0"/>
@@ -33,14 +33,14 @@
     <!-- 定义探索区域的最小y边界为-30米，限制无人机活动范围 -->
     <arg name="box_min_y" value="-30.0"/>
     <!-- 定义探索区域的最小z边界为-0.5米 -->
-    <arg name="box_min_z" value="-0.5"/>
+    <arg name="box_min_z" value="-3.5"/>
 
     <!-- 定义探索区域的最大x边界为30米 -->
-    <arg name="box_max_x" value="30.0"/>
+    <arg name="box_max_x" value="20.0"/>
     <!-- 定义探索区域的最大y边界为30米 -->
-    <arg name="box_max_y" value="30.0"/>
+    <arg name="box_max_y" value="20.0"/>
     <!-- 定义探索区域的最大z边界为5米 -->
-    <arg name="box_max_z" value="1.4"/>
+    <arg name="box_max_z" value="2.0"/>
     <!-- 向算法传递选定的里程计话题作为odometry_topic参数 -->
     <arg name="odometry_topic" value="$(arg odom_topic)"/>
     <!-- 传感器位姿话题，用于提供相机（传感器）坐标系在世界下的变换 -->
@@ -63,9 +63,9 @@
     <arg name="fy" value="475.71"/>      <!-- 你的实际值 -->
 
     <!-- 设置无人机的最大速度（单位：米/秒） -->
-    <arg name="max_vel" value="0.8" />
+    <arg name="max_vel" value="1.6" />
     <!-- 设置无人机的最大加速度（单位：米/秒^2） -->
-    <arg name="max_acc" value="1.5" />
+    <arg name="max_acc" value="0.5" />
   </include>
 
   <!-- 轨迹服务节点，负责输出轨迹命令供执行器使用 -->

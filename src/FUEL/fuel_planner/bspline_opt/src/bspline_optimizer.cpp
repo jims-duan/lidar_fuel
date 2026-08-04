@@ -163,13 +163,21 @@ void BsplineOptimizer::optimize(Eigen::MatrixXd& points, double& dt, const int& 
 }
 
 void BsplineOptimizer::optimize() {
+  // 【新增防御检查 1】如果控制点太少，根本不具备优化条件，直接返回避免后续崩溃
+  if (point_num_ < 2 || variable_num_ <= 0) {
+    ROS_WARN("[Bspline] Too few points (%d) or variables (%d). Skip optimization.", point_num_, variable_num_);
+    return;
+  }
+
   // Optimize all control points and maybe knot span dt
   // Use NLopt solver
   nlopt::opt opt(nlopt::algorithm(isQuadratic() ? algorithm1_ : algorithm2_), variable_num_);
   opt.set_min_objective(BsplineOptimizer::costFunction, this);
   opt.set_maxeval(max_iteration_num_[max_num_id_]);
   opt.set_maxtime(max_iteration_time_[max_time_id_]);
-  opt.set_xtol_rel(1e-5);
+  
+  // 【优化调整】如果是 ARM/Jetson 平台，1e-5 有时过于严苛导致不收敛，推荐放宽到 1e-4 或 1e-3
+  opt.set_xtol_rel(1e-4); 
 
   // Set axis aligned bounding box for optimization
   Eigen::Vector3d bmin, bmax;
@@ -178,19 +186,6 @@ void BsplineOptimizer::optimize() {
     bmin[k] += 0.1;
     bmax[k] -= 0.1;
   }
-  // Deprecated: does not optimize start and end control points
-  // for (int i = order_; i < pt_num; ++i)
-  // {
-  //   if (!(cost_function_ & BOUNDARY) && i >= pt_num - order_)
-  //     continue;
-  //   for (int j = 0; j < dim_; j++)
-  //   {
-  //     double cij = control_points_(i, j);
-  //     if (dim_ != 1)
-  //       cij = max(min(cij, bmax[j % 3]), bmin[j % 3]);
-  //     q[dim_ * (i - order_) + j] = cij;
-  //   }
-  // }
 
   vector<double> q(variable_num_);
   // Variables for control points
@@ -221,36 +216,39 @@ void BsplineOptimizer::optimize() {
   }
 
   auto t1 = ros::Time::now();
+  bool optimize_success = false; // 【新增标志位】
+
   try {
     double final_cost;
     nlopt::result result = opt.optimize(q, final_cost);
+    
+    // 【新增防御检查 2】只有当 nlopt 返回成功状态时，才允许提取 best_variable_
+    if (result >= 0) { 
+      optimize_success = true;
+    } else {
+      ROS_WARN("[Bspline] NLopt returned negative precision code: %d", result);
+    }
   } catch (std::exception& e) {
-    cout << e.what() << endl;
+    cout << "[Bspline] NLopt exception caught: " << e.what() << endl;
+    optimize_success = false; // 发生异常，强制标记为失败
   }
-  for (int i = 0; i < point_num_; ++i)
-    for (int j = 0; j < dim_; ++j)
-      control_points_(i, j) = best_variable_[dim_ * i + j];
-  if (optimize_time_) knot_span_ = best_variable_[variable_num_ - 1];
+
+  // 【核心修改】只有成功了才用最优值覆盖；如果失败了，保留原有的 points 退出，绝不闪退！
+  if (optimize_success && best_variable_.size() >= (size_t)variable_num_) {
+    for (int i = 0; i < point_num_; ++i)
+      for (int j = 0; j < dim_; ++j)
+        control_points_(i, j) = best_variable_[dim_ * i + j];
+    if (optimize_time_) knot_span_ = best_variable_[variable_num_ - 1];
+  } else {
+    ROS_WARN("[Bspline] Optimization failed or best_variable vector size mismatch! Maintaining original points.");
+  }
 
   if (cost_function_ & MINTIME) {
     std::cout << "Iter num: " << iter_num_ << ", time: " << (ros::Time::now() - t1).toSec()
               << ", point num: " << point_num_ << ", comb time: " << comb_time << std::endl;
   }
-
-  // Deprecated
-  // for (int i = order_; i < control_points_.rows(); ++i)
-  // {
-  //   if (!(cost_function_ & BOUNDARY) && i >= pt_num - order_)
-  //     continue;
-  //   for (int j = 0; j < dim_; j++)
-  //   {
-  //     control_points_(i, j) = best_variable_[dim_ * (i - order_) + j];
-  //   }
-  // }
-
-  // if (!(cost_function_ & GUIDE))
-  //   ROS_INFO_STREAM("iter num: " << iter_num_);
 }
+
 
 void BsplineOptimizer::calcSmoothnessCost(const vector<Eigen::Vector3d>& q, const double& dt,
                                           double& cost, vector<Eigen::Vector3d>& gradient_q,

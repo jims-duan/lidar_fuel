@@ -647,7 +647,8 @@ void FastExplorationFSM::triggerCallback(const nav_msgs::PathConstPtr& msg) {
   if (state_ != WAIT_TRIGGER) return;
   fd_->trigger_ = true;
   // 返航点与探索规划同一坐标系：在真正开始探索时取当前位姿，避免首帧 odom 未收敛导致 home 落在错误位置
-  home_pos_ = fd_->odom_pos_;
+  // home_pos_ = fd_->odom_pos_;
+  home_pos_ = Vector3d(0.0, 0.0, 1.0);
   home_set_ = true;
   ROS_INFO("Home (return) set to: %.3f %.3f %.3f", home_pos_(0), home_pos_(1), home_pos_(2));
   cout << "Triggered!" << endl;

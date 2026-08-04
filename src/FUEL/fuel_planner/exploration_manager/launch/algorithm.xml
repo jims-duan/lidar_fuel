@@ -1,342 +1,209 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <launch>
-  <!-- ==================== 地图尺寸参数 ==================== -->
-  <!-- 地图X方向尺寸参数（栅格数量） -->
-  <arg name="map_size_x_"/>
-  <!-- 地图Y方向尺寸参数（栅格数量） -->
-  <arg name="map_size_y_"/>
-  <!-- 地图Z方向尺寸参数（栅格数量） -->
-  <arg name="map_size_z_"/>
+  <!-- ================== 地图参数 ================== -->
+  <arg name="map_size_x_"/>            <!-- 地图尺寸x方向 -->
+  <arg name="map_size_y_"/>            <!-- 地图尺寸y方向 -->
+  <arg name="map_size_z_"/>            <!-- 地图尺寸z方向 -->
 
-  <!-- ==================== 地图边界框参数 ==================== -->
-  <!-- 地图边界框最小X坐标（世界坐标系，单位：米） -->
-  <arg name="box_min_x"/>
-  <!-- 地图边界框最小Y坐标（世界坐标系，单位：米） -->
-  <arg name="box_min_y"/>
-  <!-- 地图边界框最小Z坐标（世界坐标系，单位：米） -->
-  <arg name="box_min_z"/>
-  <!-- 地图边界框最大X坐标（世界坐标系，单位：米） -->
-  <arg name="box_max_x"/>
-  <!-- 地图边界框最大Y坐标（世界坐标系，单位：米） -->
-  <arg name="box_max_y"/>
-  <!-- 地图边界框最大Z坐标（世界坐标系，单位：米） -->
-  <arg name="box_max_z"/>
+  <arg name="box_min_x"/>              <!-- 有效区域包围盒最小x -->
+  <arg name="box_min_y"/>              <!-- 有效区域包围盒最小y -->
+  <arg name="box_min_z"/>              <!-- 有效区域包围盒最小z -->
+  <arg name="box_max_x"/>              <!-- 有效区域包围盒最大x -->
+  <arg name="box_max_y"/>              <!-- 有效区域包围盒最大y -->
+  <arg name="box_max_z"/>              <!-- 有效区域包围盒最大z -->
 
-  <!-- ==================== 话题名称参数 ==================== -->
-  <!-- 里程计话题名（提供无人机位姿信息） -->
-  <arg name="odometry_topic"/>
-  <!-- 传感器位姿话题名（相机等传感器的位姿） -->
-  <arg name="sensor_pose_topic"/>
-  <!-- 深度图话题名（RGB-D相机的深度图像） -->
-  <arg name="depth_topic"/>
-  <!-- 点云话题名（3D点云数据） -->
-  <arg name="cloud_topic"/>
+  <!-- ================== 传感器topic参数 ================== -->
+  <arg name="odometry_topic"/>         <!-- 里程计topic名称 -->
+  <arg name="sensor_pose_topic"/>      <!-- 传感器位姿topic名称 -->
+  <arg name="depth_topic"/>            <!-- 深度图像topic名称 -->
+  <arg name="cloud_topic"/>            <!-- 点云topic名称 -->
 
-  <!-- ==================== 相机内参参数 ==================== -->
-  <!-- 相机光心X坐标（像素坐标系，单位：像素） -->
-  <arg name="cx"/>
-  <!-- 相机光心Y坐标（像素坐标系，单位：像素） -->
-  <arg name="cy"/>
-  <!-- 焦距X（单位：像素） -->
-  <arg name="fx"/>
-  <!-- 焦距Y（单位：像素） -->
-  <arg name="fy"/>
+  <!-- ================== 相机内参 ================== -->
+  <arg name="cx"/>                     <!-- 相机主点x -->
+  <arg name="cy"/>                     <!-- 相机主点y -->
+  <arg name="fx"/>                     <!-- 相机焦距x -->
+  <arg name="fy"/>                     <!-- 相机焦距y -->
 
-  <!-- ==================== 运动学约束参数 ==================== -->
-  <!-- 最大速度（单位：米/秒） -->
-  <arg name="max_vel"/>
-  <!-- 最大加速度（单位：米/秒²） -->
-  <arg name="max_acc"/>
+  <!-- ================== 运动约束参数 ================== -->
+  <arg name="max_vel"/>                <!-- 最大速度 -->
+  <arg name="max_acc"/>                <!-- 最大加速度 -->
 
-  <!-- ==================== 主节点：探索管理器 ==================== -->
-  <!-- exploration_manager包，负责整个探索决策和规划 -->
+  <!-- ================== 主节点定义 ================== -->
   <node pkg="exploration_manager" name="exploration_node" type="exploration_node" output="screen">
-    
-    <!-- ==================== 话题重映射 ==================== -->
-    <!-- 将节点内部使用的里程计话题映射到外部实际话题 -->
-    <remap from="/odom_world" to="$(arg odometry_topic)"/>
-    <!-- 将节点内部使用的传感器位姿话题映射到外部话题 -->
-    <remap from="/map_ros/pose" to="$(arg sensor_pose_topic)"/> 
-    <!-- 将节点内部使用的深度图话题映射到外部话题 -->
-    <remap from="/map_ros/depth" to="$(arg depth_topic)"/>
-    <!-- 将节点内部使用的点云话题映射到外部话题 -->
-    <remap from="/map_ros/cloud" to="$(arg cloud_topic)"/>
+    <!-- 话题重映射 -->
+    <remap from ="/odom_world" to="$(arg odometry_topic)"/>
+    <remap from ="/map_ros/pose"   to = "$(arg sensor_pose_topic)"/> 
+    <remap from ="/map_ros/depth" to = "$(arg depth_topic)"/>
+    <remap from ="/map_ros/cloud" to="$(arg cloud_topic)"/>
 
-    <!-- ==================== SDF地图参数 ==================== -->
-    <!-- SDF（有符号距离场）地图分辨率（米/栅格） -->
-    <param name="sdf_map/resolution" value="0.1" /> 
-    <!-- SDF地图在X方向的栅格数量 -->
-    <param name="sdf_map/map_size_x" value="$(arg map_size_x_)" /> 
-    <!-- SDF地图在Y方向的栅格数量 -->
-    <param name="sdf_map/map_size_y" value="$(arg map_size_y_)" /> 
-    <!-- SDF地图在Z方向的栅格数量 -->
-    <param name="sdf_map/map_size_z" value="$(arg map_size_z_)" /> 
-    
-    <!-- 障碍物膨胀半径（米）- 用于安全距离计算 -->
-    <!-- <param name="sdf_map/obstacles_inflation" value="0.099" />  -->
-    <param name="sdf_map/obstacles_inflation" value="0.35" /> 
-    <!-- 局部地图边界膨胀系数 -->
-    <param name="sdf_map/local_bound_inflate" value="0.5"/>
-    <!-- 局部地图边距（栅格数） -->
-    <param name="sdf_map/local_map_margin" value="50"/>
-    <!-- 地面高度（米），负值表示低于地图下边界 -->
-    <param name="sdf_map/ground_height" value="-1.0"/>
-    <!-- 默认距离值（未知区域的距离值） -->
-    <param name="sdf_map/default_dist" value="0.0"/>
-    
-    <!-- ==================== 地图更新概率参数 ==================== -->
-    <!-- 命中概率：传感器测量到障碍物的概率更新值 -->
-    <param name="sdf_map/p_hit" value="0.65"/>
-    <!-- 遗漏概率：传感器测量为空闲区域的概率更新值 -->
+    <!-- sdf地图参数配置 -->
+    <param name="sdf_map/resolution"      value="0.1" /> 
+    <param name="sdf_map/map_size_x"   value="$(arg map_size_x_)" /> 
+    <param name="sdf_map/map_size_y"   value="$(arg map_size_y_)" /> 
+    <param name="sdf_map/map_size_z"   value="$(arg map_size_z_)" /> 
+    <!-- <param name="sdf_map/obstacles_inflation"     value="0.099" />  --> <!-- 膨胀半径（备选参数） -->
+    <param name="sdf_map/obstacles_inflation"     value="0.4" />         <!-- 膨胀半径 -->
+    <param name="sdf_map/local_bound_inflate"    value="0.5"/>          <!-- 局部边界膨胀量 -->
+    <param name="sdf_map/local_map_margin" value="20"/>                 <!-- 局部地图边界 -->
+    <param name="sdf_map/ground_height"        value="-1.0"/>           <!-- 地面高度 -->
+    <param name="sdf_map/default_dist"        value="0.0"/>             <!-- 默认距离 -->
+    <!-- 贝叶斯统计参数 -->
+    <param name="sdf_map/p_hit"  value="0.65"/>         
     <param name="sdf_map/p_miss" value="0.35"/>
-    <!-- 最小占用概率 -->
-    <param name="sdf_map/p_min" value="0.12"/>
-    <!-- 最大占用概率 -->
-    <param name="sdf_map/p_max" value="0.90"/>
-    <!-- 占用阈值：概率超过此值判定为障碍物 -->
-    <param name="sdf_map/p_occ" value="0.120"/>
-    
-    <!-- ==================== 射线投射参数 ==================== -->
-    <!-- 射线最小长度（米）- 忽略过近的测量 -->
-    <param name="sdf_map/min_ray_length" value="0.2"/>
-    <!-- 射线最大长度（米）- 传感器的有效测量范围 -->
-    <param name="sdf_map/max_ray_length" value="4.5"/>
-    <!-- 虚拟天花板高度（米）- 用于限制地图高度 -->
-    <param name="sdf_map/virtual_ceil_height" value="-10"/>
-    
-    <!-- 是否使用乐观模式（对未知区域采用乐观估计） -->
-    <param name="sdf_map/optimistic" value="false" type="bool"/>
-    <!-- 是否保存有符号距离场（计算障碍物距离） -->
-    <param name="sdf_map/signed_dist" value="false" type="bool"/>
-    
-    <!-- ==================== 地图边界框 ==================== -->
-    <!-- 世界坐标系下的地图边界（单位：米） -->
-    <param name="sdf_map/box_min_x" value="$(arg box_min_x)" type="double"/>
+    <param name="sdf_map/p_min"  value="0.12"/>
+    <param name="sdf_map/p_max"  value="0.90"/>
+    <param name="sdf_map/p_occ"  value="0.80"/>
+    <param name="sdf_map/min_ray_length" value="0.3"/>                 <!-- 最小射线长度 -->
+    <param name="sdf_map/max_ray_length" value="4.5"/>                 <!-- 最大射线长度 -->
+    <param name="sdf_map/virtual_ceil_height"   value="-10"/>          <!-- 虚拟天花板高度 -->
+    <param name="sdf_map/optimistic" value="false" type="bool"/>       <!-- 乐观标志 -->
+    <param name="sdf_map/signed_dist" value="false" type="bool"/>      <!-- 符号距离标志 -->
+    <param name="sdf_map/box_min_x" value="$(arg box_min_x)" type="double"/> <!-- 有效区域box -->
     <param name="sdf_map/box_min_y" value="$(arg box_min_y)" type="double"/>
     <param name="sdf_map/box_min_z" value="$(arg box_min_z)" type="double"/>
     <param name="sdf_map/box_max_x" value="$(arg box_max_x)" type="double"/>
     <param name="sdf_map/box_max_y" value="$(arg box_max_y)" type="double"/>
     <param name="sdf_map/box_max_z" value="$(arg box_max_z)" type="double"/>
 
-    <!-- ==================== 地图处理节点(map_ros)参数 ==================== -->
-    <!-- 相机内参 -->
+    <!-- 地图相关参数 -->
     <param name="map_ros/cx" value="$(arg cx)"/>
     <param name="map_ros/cy" value="$(arg cy)"/>
     <param name="map_ros/fx" value="$(arg fx)"/>
     <param name="map_ros/fy" value="$(arg fy)"/>
-    
-    <!-- 深度图滤波参数 -->
-    <param name="map_ros/depth_filter_maxdist" value="5.0"/>  <!-- 最大深度滤波距离 -->
-    <param name="map_ros/depth_filter_mindist" value="0.2"/>  <!-- 最小深度滤波距离 -->
-    <param name="map_ros/depth_filter_margin" value="2"/>      <!-- 深度边界滤波余量 -->
-    <param name="map_ros/k_depth_scaling_factor" value="1000.0"/>  <!-- 深度缩放因子 -->
-    <param name="map_ros/skip_pixel" value="2"/>               <!-- 深度图跳采样像素数，提高处理速度 -->
-    
-    <!-- ESDF（欧氏有符号距离场）参数 -->
-    <param name="map_ros/esdf_slice_height" value="0.3"/>      <!-- ESDF切片高度 -->
-    
-    <!-- 可视化参数 -->
-    <param name="map_ros/visualization_truncate_height" value="10.09"/>  <!-- 可视化最大高度截断 -->
-    <param name="map_ros/visualization_truncate_low" value="-2.0"/>      <!-- 可视化最小高度截断 -->
-    <param name="map_ros/show_occ_time" value="false"/>        <!-- 是否显示占用图计算时间 -->
-    <param name="map_ros/show_esdf_time" value="false"/>       <!-- 是否显示ESDF计算时间 -->
-    <param name="map_ros/show_all_map" value="true"/>          <!-- 是否显示完整地图 -->
-    <param name="map_ros/frame_id" value="world"/>             <!-- 地图的世界坐标系ID -->
+    <param name="map_ros/depth_filter_maxdist"   value="5.0"/>           <!-- 深度最大距离 -->
+    <param name="map_ros/depth_filter_mindist"   value="0.2"/>           <!-- 深度最小距离 -->
+    <param name="map_ros/depth_filter_margin"    value="2"/>             <!-- 外围宽度 -->
+    <param name="map_ros/k_depth_scaling_factor" value="1000.0"/>        <!-- k系数 -->
+    <param name="map_ros/skip_pixel" value="2"/>                         <!-- 跳跃像素 -->
+    <param name="map_ros/esdf_slice_height" value="0.3"/>                <!-- ESDF显示高度切片 -->
+    <param name="map_ros/visualization_truncate_height"   value="10.09"/> <!-- 可视化最大高度 -->
+    <param name="map_ros/visualization_truncate_low"   value="-2.0"/>    <!-- 可视化最小高度 -->
+    <param name="map_ros/show_occ_time"  value="false"/>                 <!-- 是否显示占用时间 -->
+    <param name="map_ros/show_esdf_time" value="false"/>                 <!-- 是否显示esdf耗时 -->
+    <param name="map_ros/show_all_map" value="true"/>                    <!-- 是否显示完整地图 -->
+    <param name="map_ros/frame_id"      value="world"/>                  <!-- 地图坐标系 -->
 
-    <!-- ==================== 有限状态机(FSM)参数 ==================== -->
-    <!-- 重规划触发阈值1 - 位置偏差阈值 -->
-    <param name="fsm/thresh_replan1" value="0.5" type="double"/>
-    <!-- 重规划触发阈值2 - 速度偏差阈值 -->
-    <param name="fsm/thresh_replan2" value="0.3" type="double"/>
-    <!-- 重规划触发阈值3 - 时间偏差阈值 -->
-    <param name="fsm/thresh_replan3" value="1.5" type="double"/>
-    <!-- 重规划时间周期（秒）- 定期重规划的时间间隔 -->
-    <param name="fsm/replan_time" value="0.200" type="double"/>
+    <!-- ====== 有限状态机FSM参数 ===== -->
+    <param name="fsm/thresh_replan1" value="0.5" type="double"/>         <!-- 重新规划阈值1 -->
+    <param name="fsm/thresh_replan2" value="0.5" type="double"/>         <!-- 重新规划阈值2 -->
+    <param name="fsm/thresh_replan3" value="1.5" type="double"/>         <!-- 重新规划阈值3 -->
+    <!-- <param name="fsm/thresh_replan1" value="0.00001" type="double"/> --> <!-- 开发用 -->
+    <!-- <param name="fsm/thresh_replan2" value="100.0" type="double"/>   -->
+    <!-- <param name="fsm/thresh_replan3" value="0.1" type="double"/>    -->
+    <param name="fsm/replan_time" value="0.100" type="double"/>          <!-- 重新规划时间阈值 -->
 
-    <!-- ==================== 探索管理器参数 ==================== -->
-    <!-- 是否进行局部视点细化（提高探索效率的关键） -->
-    <param name="exploration/refine_local" value="true" type="bool"/>
-    <!-- 局部细化点数量 - 每个前沿生成的候选视点数量 -->
-    <param name="exploration/refined_num" value="7" type="int"/>
-    <!-- 局部细化半径（米）- 视点生成的搜索半径 -->
-    <param name="exploration/refined_radius" value="5.0" type="double"/>
-    <!-- 最大信息衰减率 - 信息增益随距离衰减的系数 -->
-    <param name="exploration/max_decay" value="0.8" type="double"/>
-    <!-- 最多考虑的Top视点数量 - 每次规划考虑的候选点数量 -->
-    <param name="exploration/top_view_num" value="15" type="int"/>
-    
-    <!-- 探索运动学约束 -->
-    <param name="exploration/vm" value="$(eval 1.0 * arg('max_vel'))" type="double"/>   <!-- 探索最大速度 -->
-    <param name="exploration/am" value="$(eval 1.0 * arg('max_acc'))" type="double"/>   <!-- 探索最大加速度 -->
-    <param name="exploration/yd" value="$(eval 30 * 3.1415926 / 180.0)" type="double"/> <!-- 最大偏航角速度 -->
-    <param name="exploration/ydd" value="$(eval 60 * 3.1415926 / 180.0)" type="double"/><!-- 最大偏航角加速度 -->
-    <param name="exploration/w_dir" value="1.5" type="double"/>                          <!-- 方向权重系数 -->
-    
-    <!-- TSP（旅行商问题）求解器路径 - 用于优化前沿访问顺序 -->
-    <param name="exploration/tsp_dir" value="$(find lkh_tsp_solver)/resource" type="string"/>
-    <!-- 探索松弛时间（秒）- 路径规划的松驰时间 -->
-    <param name="exploration/relax_time" value="1.0" type="double"/>
+    <!-- ====== 探索管理相关参数 ====== -->
+    <param name="exploration/refine_local" value="true" type="bool"/>     <!-- 是否本地精细化 -->
+    <param name="exploration/refined_num" value="7" type="int"/>          <!-- 精细化次数 -->
+    <param name="exploration/refined_radius" value="5.0" type="double"/>  <!-- 精细化半径 -->
+    <param name="exploration/max_decay" value="0.8" type="double"/>       <!-- 最大衰减值 -->
+    <param name="exploration/top_view_num" value="15" type="int"/>        <!-- top视角数量 -->
+    <param name="exploration/vm" value="$(eval 1.0 * arg('max_vel'))" type="double"/>  <!-- 最大速度 -->
+    <param name="exploration/am" value="$(eval 1.0 * arg('max_acc'))" type="double"/>  <!-- 最大加速度 -->
+    <param name="exploration/yd" value="$(eval 60 * 3.1415926 / 180.0)" type="double"/>  <!-- 最大偏航速率 -->
+    <param name="exploration/ydd" value="$(eval 90 * 3.1415926 / 180.0)" type="double"/> <!-- 最大角加速度 -->
+    <param name="exploration/w_dir" value="10.5" type="double"/>           <!-- 权重参数 -->
+    <param name="exploration/tsp_dir" value="$(find lkh_tsp_solver)/resource" type="string"/> <!-- TSP路径 -->
+    <param name="exploration/relax_time" value="1.0" type="double"/>      <!-- 放松时间 -->
 
-    <!-- ==================== 前沿检测参数 ==================== -->
-    <!-- 前沿最小聚类点数 - 少于该点数的前沿被忽略 -->
-    <param name="frontier/cluster_min" value="80" type="int"/>
-    <!-- 前沿聚类XY平面尺寸（米）- 用于聚类合并的距离阈值 -->
-    <param name="frontier/cluster_size_xy" value="2.0" type="double"/>
-    <!-- 前沿聚类Z方向尺寸（米） -->
-    <param name="frontier/cluster_size_z" value="10.0" type="double"/>
-    <!-- 候选前沿最小距离（米）- 避免重复的候选点 -->
-    <param name="frontier/min_candidate_dist" value="0.75" type="double"/>
-    <!-- 候选前沿最小间隙（米）- 确保足够的通过空间 -->
-    <param name="frontier/min_candidate_clearance" value="0.21" type="double"/>
-    
-    <!-- 候选视点生成参数 -->
-    <param name="frontier/candidate_dphi" value="$(eval 15 * 3.1415926 / 180.0)" type="double"/>  <!-- 偏航角分辨率（弧度） -->
-    <param name="frontier/candidate_rnum" value="3" type="int"/>        <!-- 半径采样数量 -->
-    <param name="frontier/candidate_rmin" value="1.5" type="double"/>   <!-- 最小候选半径（米） -->
-    <param name="frontier/candidate_rmax" value="2.5" type="double"/>   <!-- 最大候选半径（米） -->
-    <param name="frontier/down_sample" value="3" type="int"/>           <!-- 点云降采样率 -->
-    <param name="frontier/min_visib_num" value="15" type="int"/>        <!-- 最小可视点数阈值 -->
-    <param name="frontier/min_view_finish_fraction" value="0.05" type="double"/>  <!-- 视点完成度阈值 -->
+    <!-- ====== 边界frontier相关参数 ====== -->
+    <param name="frontier/cluster_min" value="20" type="int"/>                    <!-- 最小聚类点数 -->
+    <param name="frontier/cluster_size_xy" value="2.0" type="double"/>             <!-- 聚类xy尺寸 -->
+    <param name="frontier/cluster_size_z" value="10.0" type="double"/>             <!-- 聚类z尺寸 -->
+    <param name="frontier/min_candidate_dist" value="0.75" type="double"/>         <!-- 候选点最小距离 -->
+    <param name="frontier/min_candidate_clearance" value="0.21" type="double"/>    <!-- 候选点最小间隙 -->
+    <param name="frontier/candidate_dphi" value="$(eval 15 * 3.1415926 / 180.0)" type="double"/> <!-- 候选点角度步长 -->
+    <param name="frontier/candidate_rnum" value="3" type="int"/>                   <!-- 候选半径数量 -->
+    <param name="frontier/candidate_rmin" value="1.5" type="double"/>              <!-- 候选最小半径 -->
+    <param name="frontier/candidate_rmax" value="2.5" type="double"/>              <!-- 候选最大半径 -->
+    <param name="frontier/down_sample" value="3" type="int"/>;                     <!-- 下采样率 -->
+    <param name="frontier/min_visib_num" value="15" type="int"/>;                  <!-- 最小可见数目 -->
+    <param name="frontier/min_view_finish_fraction" value="0.02" type="double"/>;   <!-- 视点最小完成比例 -->
 
-    <!-- ==================== 感知工具参数 ==================== -->
-    <!-- 感知工具-顶部夹角（弧度）- 相机垂直视场角上边界 -->
-    <param name="perception_utils/top_angle" value="0.6107" type="double"/>
-    <!-- 感知工具-左侧夹角（弧度）- 相机水平视场角左边界 -->
-    <param name="perception_utils/left_angle" value="0.7505" type="double"/>
-    <!-- 感知工具-右侧夹角（弧度）- 相机水平视场角右边界 -->
-    <param name="perception_utils/right_angle" value="0.7505" type="double"/>
-    <!-- 感知工具-最大距离（米）- 传感器最大感知距离 -->
-    <param name="perception_utils/max_dist" value="4.5" type="double"/>
-    <!-- 感知工具-可视距离（米）- 用于计算可视性的距离阈值 -->
-    <param name="perception_utils/vis_dist" value="4.5" type="double"/>
+    <!-- ====== 感知工具集参数 ====== -->
+    <param name="perception_utils/top_angle" value="0.56125" type="double"/>;      <!-- 顶部夹角 -->
+    <param name="perception_utils/left_angle" value="0.69222" type="double"/>;     <!-- 左边夹角 -->
+    <param name="perception_utils/right_angle" value="0.68901" type="double"/>;    <!-- 右边夹角 -->
+    <param name="perception_utils/max_dist" value="4.5" type="double"/>;           <!-- 感知最大距离 -->
+    <param name="perception_utils/vis_dist" value="1.0" type="double"/>;           <!-- 可见距离 -->
 
-    <!-- ==================== 偏航规划器参数 ==================== -->
-    <!-- 偏航角偏差阈值（弧度）- 触发偏航重规划的阈值 -->
-    <param name="heading_planner/yaw_diff" value="$(eval 30 * 3.1415926 / 180.0)" type="double"/>
-    <!-- 垂直方向采样点数 - 用于计算最佳偏航角的采样点数量 -->
-    <param name="heading_planner/half_vert_num" value="5" type="int"/>
-    <!-- 偏航规划Lambda1系数 - 信息增益权重 -->
-    <param name="heading_planner/lambda1" value="5.0" type="double"/>
-    <!-- 偏航规划Lambda2系数 - 偏航变化代价权重 -->
+    <!-- ====== 朝向规划器参数 ====== -->
+    <param name="heading_planner/yaw_diff" value="$(eval 10 * 3.1415926 / 180.0)" type="double"/>   <!-- yaw角步长 -->
+    <param name="heading_planner/half_vert_num" value="5" type="int"/>                              <!-- 垂向采样数 -->
+    <param name="heading_planner/lambda1" value="2.0" type="double"/>
     <param name="heading_planner/lambda2" value="1.0" type="double"/>
-    <!-- 最大偏航角变化率（弧度/秒） -->
-    <param name="heading_planner/max_yaw_rate" value="$(eval 10 * 3.1415926 / 180.0)" type="double"/>
-    <!-- 偏航规划权重参数 -->
-    <param name="heading_planner/w" value="20.0" type="double"/>
-    <!-- 权重类型选择 -->
+    <param name="heading_planner/max_yaw_rate" value="$(eval 10 * 3.1415926 / 180.0)" type="double"/> <!-- 最大yaw速率 -->
+    <param name="heading_planner/w" value="20000.0" type="double"/>
     <param name="heading_planner/weight_type" value="1" type="double"/>
 
-    <!-- ==================== 路径管理器参数 ==================== -->
-    <!-- 最大速度（米/秒） -->
-    <param name="manager/max_vel" value="$(arg max_vel)" type="double"/>
-    <!-- 最大加速度（米/秒²） -->
-    <param name="manager/max_acc" value="$(arg max_acc)" type="double"/>
-    <!-- 最大加加速度（米/秒³） -->
-    <param name="manager/max_jerk" value="4" type="double"/>
-    <!-- 是否包含动态环境（0:静态, 1:动态） -->
-    <param name="manager/dynamic_environment" value="1" type="int"/>
-    <!-- 局部轨迹段长度（米） -->
-    <param name="manager/local_segment_length" value="6.0" type="double"/>
-    <!-- 安全间隙阈值（米）- 与障碍物的最小距离 -->
-    <param name="manager/clearance_threshold" value="0.35" type="double"/>
-    <!-- 控制点距离（米）- B样条控制点间距 -->
-    <param name="manager/control_points_distance" value="0.35" type="double"/>
-    
-    <!-- 路径生成开关 -->
-    <param name="manager/use_geometric_path" value="true" type="bool"/>     <!-- 是否使用几何路径 -->
-    <param name="manager/use_kinodynamic_path" value="true" type="bool"/>   <!-- 是否使用动力学路径 -->
-    <param name="manager/use_topo_path" value="true" type="bool"/>          <!-- 是否使用拓扑路径 -->
-    <param name="manager/use_optimization" value="true" type="bool"/>       <!-- 是否进行轨迹优化 -->
-    <param name="manager/use_active_perception" value="true" type="bool"/>  <!-- 是否激活主动感知 -->
-    <param name="manager/min_time" value="true" type="bool"/>               <!-- 是否使用最小时间优化 -->
+    <!-- ====== 规划器管理参数 ====== -->
+    <!-- <param name="manager/max_vel" value="$(arg max_vel)" type="double"/> --> <!-- (备选)最大速度 -->
+    <param name="manager/max_vel" value="$(arg max_vel)" type="double"/>             <!-- 最大速度 -->
+    <param name="manager/max_acc" value="$(arg max_acc)" type="double"/>             <!-- 最大加速度 -->
+    <param name="manager/max_jerk" value="4.0" type="double"/>                        <!-- 最大jerk -->
+    <param name="manager/dynamic_environment" value="0" type="int"/>                <!-- 动态环境标志 -->
+    <param name="manager/local_segment_length" value="6.0" type="double"/>          <!-- 局部段长度 -->
+    <param name="manager/clearance_threshold" value="0.4" type="double"/>           <!-- 安全距离阈值 -->
+    <param name="manager/control_points_distance" value="0.95" type="double"/>      <!-- 控制点间距 -->
+    <param name="manager/use_geometric_path" value="true" type="bool"/>             <!-- 是否用几何路径 -->
+    <param name="manager/use_kinodynamic_path" value="true" type="bool"/>           <!-- 是否用运动学路径 -->
+    <param name="manager/use_topo_path" value="true" type="bool"/>                  <!-- 是否用拓扑路径 -->
+    <param name="manager/use_optimization" value="true" type="bool"/>               <!-- 是否用优化 -->
+    <param name="manager/use_active_perception" value="true" type="bool"/>          <!-- 是否主动感知 -->
+    <param name="manager/min_time" value="false" type="bool"/>                       <!-- 是否使用最小时长优化 -->
 
-    <!-- ==================== Kinodynamic路径搜索参数 ==================== -->
-    <!-- 最大搜索时间（秒）- 每个时间步的最大持续时间 -->
-    <param name="search/max_tau" value="0.8" type="double"/>
-    <!-- 初始最大搜索时间（秒） -->
-    <param name="search/init_max_tau" value="1.0" type="double"/>
-    <!-- 搜索最大速度（米/秒） -->
+    <!-- ====== 运动学路径搜索参数 ====== -->
+    <param name="search/max_tau" value="0.8" type="double"/>                <!-- 最大tau -->
+    <param name="search/init_max_tau" value="1.0" type="double"/>           <!-- 初始最大tau -->
     <param name="search/max_vel" value="$(arg max_vel)" type="double"/>
-    <!-- 速度裕量（米/秒）- 预留的安全速度余量 -->
-    <param name="search/vel_margin" value="0.25" type="double"/>
-    <!-- 搜索最大加速度（米/秒²） -->
+    <param name="search/vel_margin" value="0.25" type="double"/>            <!-- 速度裕度 -->
     <param name="search/max_acc" value="$(arg max_acc)" type="double"/>
-    <!-- 时间权重系数 -->
-    <param name="search/w_time" value="10.0" type="double"/>
-    <!-- 搜索视野（米）- 规划的最大范围 -->
-    <param name="search/horizon" value="5.0" type="double"/>
-    <!-- 启发式函数lambda权重 -->
-    <param name="search/lambda_heu" value="10.0" type="double"/>
-    <!-- A*搜索分辨率（米） -->
-    <param name="search/resolution_astar" value="0.025" type="double"/>
-    <!-- 时间分辨率（秒） -->
-    <param name="search/time_resolution" value="0.8" type="double"/>
-    <!-- 安全边距（米） -->
-    <param name="search/margin" value="0.5" type="double"/>
-    <!-- 最大分配节点数 -->
-    <param name="search/allocate_num" value="100000" type="int"/>
-    <!-- 最大检测次数 -->
-    <param name="search/check_num" value="10" type="int"/>
-    <!-- 是否使用乐观搜索（未知区域视为自由） -->
-    <param name="search/optimistic" value="false" type="bool"/>
+    <param name="search/w_time" value="10.0" type="double"/>                <!-- 时间权重 -->
+    <param name="search/horizon" value="5.0" type="double"/>                <!-- 搜索视界 -->
+    <param name="search/lambda_heu" value="10.0" type="double"/>            <!-- 启发权重 -->
+    <param name="search/resolution_astar" value="0.025" type="double"/>     <!-- A*分辨率 -->
+    <param name="search/time_resolution" value="0.8" type="double"/>        <!-- 时间分辨率 -->
+    <param name="search/margin" value="0.4" type="double"/>                 <!-- 安全边距 -->
+    <param name="search/allocate_num" value="100000" type="int"/>           <!-- 分配空间数量 -->
+    <param name="search/check_num" value="10" type="int"/>                  <!-- 检查节点数量 -->
+    <param name="search/optimistic" value="false" type="bool"/>             <!-- 乐观搜索标志 -->
 
-    <!-- ==================== A*路径搜索参数 ==================== -->
-    <!-- A*启发式lambda权重 - 影响搜索的贪婪程度 -->
+    <!-- ====== astar参数 ====== -->
     <param name="astar/lambda_heu" value="10000.0" type="double"/>
-    <!-- A*搜索分辨率（米） -->
     <param name="astar/resolution_astar" value="0.2" type="double"/>
-    <!-- 最大分配节点数 -->
     <param name="astar/allocate_num" value="1000000" type="int"/>
-    <!-- 最大搜索时间（秒）- 超过此时间则停止搜索 -->
-    <param name="astar/max_search_time" value="0.01" type="double"/>
+    <param name="astar/max_search_time" value="0.001" type="double"/>
 
-    <!-- ==================== 轨迹优化参数 ==================== -->
-    <!-- 平滑度权重 - 影响轨迹的平滑程度 -->
-    <param name="optimization/ld_smooth" value="20.0" type="double"/>
-    <!-- 距离权重 - 鼓励轨迹远离障碍物 -->
-    <param name="optimization/ld_dist" value="100.0" type="double"/>
-    <!-- 可行性权重 - 确保轨迹满足运动学约束 -->
-    <param name="optimization/ld_feasi" value="200.0" type="double"/>
-    <!-- 起点权重 - 约束轨迹起点 -->
-    <param name="optimization/ld_start" value="100.0" type="double"/>
-    <!-- 终点权重 - 约束轨迹终点 -->
-    <param name="optimization/ld_end" value="0.5" type="double"/>
-    <!-- 引导权重 - 引导轨迹走向 -->
-    <param name="optimization/ld_guide" value="1.5" type="double"/>
-    <!-- 航点权重 - 约束途径点 -->
-    <param name="optimization/ld_waypt" value="0.3" type="double"/>
-    <!-- 视点权重 - 约束视点方向 -->
-    <param name="optimization/ld_view" value="0.0" type="double"/>
-    <!-- 时间权重 - 影响轨迹执行时间 -->
-    <param name="optimization/ld_time" value="1.0" type="double"/>
-    <!-- 初始距离参数 - 用于优化初始化的距离 -->
-    <param name="optimization/dist0" value="0.7" type="double"/>
-    
-    <!-- 优化运动学约束 -->
+    <!-- ====== 轨迹优化相关参数 ====== -->
+    <param name="optimization/ld_smooth" value="20.0" type="double"/>         <!-- 平滑损失权重 -->
+    <param name="optimization/ld_dist" value="10.0" type="double"/>           <!-- 距离损失权重 -->
+    <param name="optimization/ld_feasi" value="2000.0" type="double"/>           <!-- 可行性损失权重 -->
+    <param name="optimization/ld_start" value="100.0" type="double"/>         <!-- 起点约束权重 -->
+    <param name="optimization/ld_end" value="0.5" type="double"/>             <!-- 终点约束权重 -->
+    <param name="optimization/ld_guide" value="1.5" type="double"/>           <!-- 引导损失权重 -->
+    <param name="optimization/ld_waypt" value="0.3" type="double"/>           <!-- 路径点损失权重 -->
+    <param name="optimization/ld_view" value="0.0" type="double"/>            <!-- 视点损失权重 -->
+    <param name="optimization/ld_time" value="1000.0" type="double"/>            <!-- 时间损失权重 -->
+    <param name="optimization/dist0" value="0.7" type="double"/>              <!-- 距离初值 -->
     <param name="optimization/max_vel" value="$(arg max_vel)" type="double"/>
     <param name="optimization/max_acc" value="$(arg max_acc)" type="double"/>
-    
-    <!-- 优化算法配置 -->
-    <param name="optimization/algorithm1" value="15" type="int"/>      <!-- 第一轮优化算法 -->
-    <param name="optimization/algorithm2" value="11" type="int"/>      <!-- 第二轮优化算法 -->
-    <param name="optimization/max_iteration_num1" value="4" type="int"/>       <!-- 第一轮最大迭代次数 -->
-    <param name="optimization/max_iteration_num2" value="2000" type="int"/>    <!-- 第二轮最大迭代次数 -->
-    <param name="optimization/max_iteration_num3" value="200" type="int"/>     <!-- 第三轮最大迭代次数 -->
-    <param name="optimization/max_iteration_num4" value="200" type="int"/>     <!-- 第四轮最大迭代次数 -->
-    
-    <!-- 优化时间限制 -->
-    <param name="optimization/max_iteration_time1" value="0.0001" type="double"/>  <!-- 第一轮最大时间 -->
-    <param name="optimization/max_iteration_time2" value="0.005" type="double"/>   <!-- 第二轮最大时间 -->
-    <param name="optimization/max_iteration_time3" value="0.003" type="double"/>   <!-- 第三轮最大时间 -->
-    <param name="optimization/max_iteration_time4" value="0.003" type="double"/>   <!-- 第四轮最大时间 -->
+    <param name="optimization/algorithm1" value="15" type="int"/>             <!-- 优化算法1编号 -->
+    <param name="optimization/algorithm2" value="11" type="int"/>             <!-- 优化算法2编号 -->
+    <param name="optimization/max_iteration_num1" value="2" type="int"/>      <!-- 优化最大迭代次数1 -->
+    <param name="optimization/max_iteration_num2" value="2000" type="int"/>   <!-- 优化最大迭代次数2 -->
+    <param name="optimization/max_iteration_num3" value="200" type="int"/>    <!-- 优化最大迭代次数3 -->
+    <param name="optimization/max_iteration_num4" value="200" type="int"/>    <!-- 优化最大迭代次数4 -->
 
-    <!-- ==================== B样条轨迹参数 ==================== -->
-    <!-- B样条轨迹最大速度约束 -->
+    <param name="optimization/max_iteration_time1" value="0.0001" type="double"/>  <!-- 优化最大单次时间1 -->
+    <param name="optimization/max_iteration_time2" value="0.005" type="double"/>   <!-- 优化最大单次时间2 -->
+    <param name="optimization/max_iteration_time3" value="0.003" type="double"/>   <!-- 优化最大单次时间3 -->
+    <param name="optimization/max_iteration_time4" value="0.003" type="double"/>   <!-- 优化最大单次时间4 -->
+    <param name="bspline/limit_vel" value="$(arg max_vel)" type="double"/>          <!-- bspline最大速度 -->
+    <param name="bspline/limit_acc" value="$(arg max_acc)" type="double"/>          <!-- bspline最大加速度 -->
+    <param name="bspline/limit_ratio" value="1.1" type="double"/>                  <!-- bspline速度因子 -->
     <param name="bspline/limit_vel" value="$(arg max_vel)" type="double"/>
-    <!-- B样条轨迹最大加速度约束 -->
     <param name="bspline/limit_acc" value="$(arg max_acc)" type="double"/>
-    <!-- B样条轨迹约束比率 - 用于轨迹调整的安全系数 -->
     <param name="bspline/limit_ratio" value="1.1" type="double"/>
 
   </node>
+
 </launch>

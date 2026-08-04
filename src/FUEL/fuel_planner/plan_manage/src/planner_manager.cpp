@@ -138,7 +138,6 @@ bool FastPlannerManager::kinodynamicReplan(const Eigen::Vector3d& start_pt,
   Eigen::Vector3d init_acc = start_acc;
 
   // Kinodynamic path searching
-
   auto t1 = ros::Time::now();
 
   kino_path_finder_->reset();
@@ -160,17 +159,34 @@ bool FastPlannerManager::kinodynamicReplan(const Eigen::Vector3d& start_pt,
 
   // Parameterize path to B-spline
   double ts = pp_.ctrl_pt_dist / pp_.max_vel_;
+  
+  // === 🛡️ 异常防御 1：防止步长异常 ===
+  if (ts <= 1e-5) {
+    ROS_ERROR("[Kino Replan] Time step ts is too small (%f)! Check max_vel or ctrl_pt_dist.", ts);
+    return false;
+  }
+
   vector<Eigen::Vector3d> point_set, start_end_derivatives;
   kino_path_finder_->getSamples(ts, point_set, start_end_derivatives);
 
-  // std::cout << "point set:" << std::endl;
-  // for (auto pt : point_set) std::cout << pt.transpose() << std::endl;
-  // std::cout << "derivative:" << std::endl;
-  // for (auto dr : start_end_derivatives) std::cout << dr.transpose() << std::endl;
+  // === 🛡️ 异常防御 2：核心防御！验证采样点数是否足够初始化 B 样条 ===
+  if (point_set.size() < static_cast<size_t>(pp_.bspline_degree_ + 1)) {
+    ROS_ERROR("[Kino Replan] Sampled point set size (%ld) is too small for %d-degree B-spline! Aborting to prevent Eigen crash.", 
+              point_set.size(), pp_.bspline_degree_);
+    return false;
+  }
 
   Eigen::MatrixXd ctrl_pts;
   NonUniformBspline::parameterizeToBspline(
       ts, point_set, start_end_derivatives, pp_.bspline_degree_, ctrl_pts);
+      
+  // === 🛡️ 异常防御 3：验证参数化后的控制点矩阵是否合法 ===
+  if (ctrl_pts.rows() == 0 || ctrl_pts.cols() != 3) {
+    ROS_ERROR("[Kino Replan] Parameterized control points matrix is empty or invalid! Rows: %ld, Cols: %ld.", 
+              ctrl_pts.rows(), ctrl_pts.cols());
+    return false;
+  }
+
   NonUniformBspline init(ctrl_pts, pp_.bspline_degree_, ts);
 
   // B-spline-based optimization
@@ -182,90 +198,43 @@ bool FastPlannerManager::kinodynamicReplan(const Eigen::Vector3d& start_pt,
   if (time_lb > 0) bspline_optimizers_[0]->setTimeLowerBound(time_lb);
 
   bspline_optimizers_[0]->optimize(ctrl_pts, ts, cost_function, 1, 1);
+  
+  // === 🛡️ 异常防御 4：防止优化器将控制点置空导致崩溃 ===
+  if (ctrl_pts.rows() == 0) {
+    ROS_ERROR("[Kino Replan] Optimizer returned empty control points! Aborting.");
+    return false;
+  }
+
   local_data_.position_traj_.setUniformBspline(ctrl_pts, pp_.bspline_degree_, ts);
 
+  // === 🔄 修复：正确计算 vector<Vector3d> 中各状态的分量误差 ===
   vector<Eigen::Vector3d> start2, end2;
   local_data_.position_traj_.getBoundaryStates(2, 0, start2, end2);
-  std::cout << "State error: (" << (start2[0] - start[0]).norm() << ", "
-            << (start2[1] - start[1]).norm() << ", " << (start2[2] - start[2]).norm() << ")"
-            << std::endl;
+  
+  if (start2.size() >= 3 && start.size() >= 3) {
+    std::cout << "State error: (" << (start2[0] - start[0]).norm() << ", "
+              << (start2[1] - start[1]).norm() << ", " << (start2[2] - start[2]).norm() << ")"
+              << std::endl;
+  }
 
   double t_opt = (ros::Time::now() - t1).toSec();
   ROS_WARN("Kino t: %lf, opt: %lf", t_search, t_opt);
-
-  // t1 = ros::Time::now();
-
-  // // Adjust time and refine
-
-  // double dt;
-  // for (int i = 0; i < 2; ++i)
-  // {
-  //   NonUniformBspline pos = NonUniformBspline(ctrl_pts, pp_.bspline_degree_, ts);
-  //   pos.setPhysicalLimits(pp_.max_vel_, pp_.max_acc_);
-  //   pos.lengthenTime(min(1.01, pos.checkRatio()));
-  //   double duration = pos.getTimeSum();
-  //   dt = duration / double(pos.getControlPoint().rows() - pp_.bspline_degree_);
-
-  //   point_set.clear();
-  //   for (double time = 0.0; time <= duration + 1e-4; time += dt)
-  //     point_set.push_back(pos.evaluateDeBoorT(time));
-  //   NonUniformBspline::parameterizeToBspline(dt, point_set, start_end_derivatives,
-  //   pp_.bspline_degree_, ctrl_pts);
-  //   bspline_optimizers_[0]->optimize(ctrl_pts, dt, cost_function, 1, 1);
-  // }
-  // local_data_.position_traj_.setUniformBspline(ctrl_pts, pp_.bspline_degree_, dt);
-
-  // iterative time adjustment
-
-  // double to = pos.getTimeSum();
-  // pos.setPhysicalLimits(pp_.max_vel_, pp_.max_acc_);
-  // bool feasible = pos.checkFeasibility(false);
-
-  // int iter_num = 0;
-  // while (!feasible && ros::ok()) {
-
-  //   feasible = pos.reallocateTime();
-
-  //   if (++iter_num >= 3) break;
-  // }
-
-  // // pos.checkFeasibility(true);
-  // // cout << "[Main]: iter num: " << iter_num << endl;
-
-  // double tn = pos.getTimeSum();
-
-  // cout << "[kino replan]: Reallocate ratio: " << tn / to << endl;
-  // if (tn / to > 3.0) ROS_ERROR("reallocate error.");
-
-  // t_adjust = (ros::Time::now() - t1).toSec();
-
-  // // save planned results
-
-  // local_data_.position_traj_ = pos;
-
-  // double t_total = t_search + t_opt + t_adjust;
-  // cout << "[kino replan]: time: " << t_total << ", search: " << t_search << ",
-  // optimize: " << t_opt
-  //      << ", adjust time:" << t_adjust << endl;
-
-  // pp_.time_search_   = t_search;
-  // pp_.time_optimize_ = t_opt;
-  // pp_.time_adjust_   = t_adjust;
-
-  // int rd = rand() % 2;
-  // if (rd == 0) {
-  //   updateTrajInfo();
-  //   return true;
-  // } else
-  //   return false;
 
   updateTrajInfo();
   return true;
 }
 
+
 void FastPlannerManager::planExploreTraj(const vector<Eigen::Vector3d>& tour,
     const Eigen::Vector3d& cur_vel, const Eigen::Vector3d& cur_acc, const double& time_lb) {
   if (tour.empty()) ROS_ERROR("Empty path to traj planner");
+
+  // === 🛡️ 核心防御代码修改 ===
+  if (tour.size() < 2) { 
+    ROS_ERROR("[FastPlannerManager] Path to traj planner has fewer than 2 points (size: %ld)! Aborting traj planning.", 
+              tour.size());
+    return; // 必须 return！防止后续代码产生除零或死循环
+  }
 
   // Generate traj through waypoints-based method
   const int pt_num = tour.size();
@@ -283,6 +252,12 @@ void FastPlannerManager::planExploreTraj(const vector<Eigen::Vector3d>& tour,
   // B-spline-based optimization
   vector<Vector3d> points, boundary_deri;
   double duration = init_traj.getTotalTime();
+  // === 🛡️ 检查多项式轨迹是否成功生成 ===
+  if (duration <= 1e-4) {
+    ROS_ERROR("[FastPlannerManager] Initial polynomial trajectory duration is too short (%f s)! Aborting B-spline optimization.", 
+              duration);
+    return; // 如果时间接近 0，说明轨迹生成失败，立即返回避免死循环
+  }
   int seg_num = init_traj.getLength() / pp_.ctrl_pt_dist;
   seg_num = max(8, seg_num);
   double dt = duration / double(seg_num);
@@ -326,6 +301,12 @@ bool FastPlannerManager::planGlobalTraj(const Eigen::Vector3d& start_pos) {
   vector<Eigen::Vector3d> points = plan_data_.global_waypoints_;
   if (points.size() == 0) std::cout << "no global waypoints!" << std::endl;
 
+  // === 🛡️ 核心防御代码修改 ===
+  if (points.empty()) {
+    ROS_ERROR("[FastPlannerManager] No global waypoints available! Aborting global trajectory planning.");
+    return false; // 必须返回 false，阻止后续代码对空/单点矩阵进行操作导致崩溃
+  }
+
   points.insert(points.begin(), start_pos);
 
   // Insert intermediate points if two waypoints are too far
@@ -353,6 +334,11 @@ bool FastPlannerManager::planGlobalTraj(const Eigen::Vector3d& start_pos) {
   }
 
   int pt_num = inter_points.size();
+  // === 🛡️ 二次安全校验，确保 inter_points 数量足够 ===
+  if (pt_num < 2) {
+    ROS_ERROR("[FastPlannerManager] Global interpolated points size is %d (need >= 2). Aborting.", pt_num);
+    return false;
+  }
   Eigen::MatrixXd pos(pt_num, 3);
   for (int i = 0; i < pt_num; ++i) pos.row(i) = inter_points[i];
 
@@ -364,8 +350,20 @@ bool FastPlannerManager::planGlobalTraj(const Eigen::Vector3d& start_pos) {
   time(0) += pp_.max_vel_ / (2 * pp_.max_acc_);
   time(time.rows() - 1) += pp_.max_vel_ / (2 * pp_.max_acc_);
 
+  // === 🛡️ 确保 time 向量有足够的元素进行边界时间外推 ===
+  if (time.rows() >= 1) {
+    time(0) += pp_.max_vel_ / (2 * pp_.max_acc_);
+    time(time.rows() - 1) += pp_.max_vel_ / (2 * pp_.max_acc_);
+  }
+
   PolynomialTraj gl_traj;
   PolynomialTraj::waypointsTraj(pos, zero, zero, zero, zero, time, gl_traj);
+
+  // === 🛡️ 校验生成的全局多项式轨迹是否有效 ===
+  if (gl_traj.getTotalTime() <= 1e-4) {
+    ROS_ERROR("[FastPlannerManager] Generated global trajectory duration is near zero! Aborting.");
+    return false;
+  }
 
   auto time_now = ros::Time::now();
   global_data_.setGlobalTraj(gl_traj, time_now);
@@ -374,6 +372,13 @@ bool FastPlannerManager::planGlobalTraj(const Eigen::Vector3d& start_pos) {
 
   double dt, duration;
   Eigen::MatrixXd ctrl_pts = paramLocalTraj(0.0, dt, duration);
+
+  // === 🛡️ 校验局部截取的控制点是否有效，防止 B样条初始化崩溃 ===
+  if (ctrl_pts.rows() == 0) {
+    ROS_ERROR("[FastPlannerManager] Parameterized local control points are empty! Aborting.");
+    return false;
+  }
+
   NonUniformBspline bspline(ctrl_pts, pp_.bspline_degree_, dt);
 
   std::cout << "ctrl pt: " << ctrl_pts.rows() << std::endl;

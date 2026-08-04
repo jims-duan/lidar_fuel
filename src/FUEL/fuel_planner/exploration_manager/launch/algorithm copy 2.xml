@@ -74,7 +74,7 @@
     
     <!-- 障碍物膨胀半径（米）- 用于安全距离计算 -->
     <!-- <param name="sdf_map/obstacles_inflation" value="0.099" />  -->
-    <param name="sdf_map/obstacles_inflation" value="0.4" /> 
+    <param name="sdf_map/obstacles_inflation" value="0.35" /> 
     <!-- 局部地图边界膨胀系数 -->
     <param name="sdf_map/local_bound_inflate" value="0.5"/>
     <!-- 局部地图边距（栅格数） -->
@@ -147,7 +147,7 @@
     <!-- 重规划触发阈值1 - 位置偏差阈值 -->
     <param name="fsm/thresh_replan1" value="0.5" type="double"/>
     <!-- 重规划触发阈值2 - 速度偏差阈值 -->
-    <param name="fsm/thresh_replan2" value="0.1" type="double"/>
+    <param name="fsm/thresh_replan2" value="0.3" type="double"/>
     <!-- 重规划触发阈值3 - 时间偏差阈值 -->
     <param name="fsm/thresh_replan3" value="1.5" type="double"/>
     <!-- 重规划时间周期（秒）- 定期重规划的时间间隔 -->
@@ -168,8 +168,8 @@
     <!-- 探索运动学约束 -->
     <param name="exploration/vm" value="$(eval 1.0 * arg('max_vel'))" type="double"/>   <!-- 探索最大速度 -->
     <param name="exploration/am" value="$(eval 1.0 * arg('max_acc'))" type="double"/>   <!-- 探索最大加速度 -->
-    <param name="exploration/yd" value="$(eval 60 * 3.1415926 / 180.0)" type="double"/> <!-- 最大偏航角速度 -->
-    <param name="exploration/ydd" value="$(eval 90 * 3.1415926 / 180.0)" type="double"/><!-- 最大偏航角加速度 -->
+    <param name="exploration/yd" value="$(eval 30 * 3.1415926 / 180.0)" type="double"/> <!-- 最大偏航角速度 -->
+    <param name="exploration/ydd" value="$(eval 60 * 3.1415926 / 180.0)" type="double"/><!-- 最大偏航角加速度 -->
     <param name="exploration/w_dir" value="1.5" type="double"/>                          <!-- 方向权重系数 -->
     
     <!-- TSP（旅行商问题）求解器路径 - 用于优化前沿访问顺序 -->
@@ -216,13 +216,13 @@
     <!-- 垂直方向采样点数 - 用于计算最佳偏航角的采样点数量 -->
     <param name="heading_planner/half_vert_num" value="5" type="int"/>
     <!-- 偏航规划Lambda1系数 - 信息增益权重 -->
-    <param name="heading_planner/lambda1" value="2.0" type="double"/>
+    <param name="heading_planner/lambda1" value="5.0" type="double"/>
     <!-- 偏航规划Lambda2系数 - 偏航变化代价权重 -->
-    <param name="heading_planner/lambda2" value="3.0" type="double"/>
+    <param name="heading_planner/lambda2" value="1.0" type="double"/>
     <!-- 最大偏航角变化率（弧度/秒） -->
     <param name="heading_planner/max_yaw_rate" value="$(eval 10 * 3.1415926 / 180.0)" type="double"/>
     <!-- 偏航规划权重参数 -->
-    <param name="heading_planner/w" value="20000.0" type="double"/>
+    <param name="heading_planner/w" value="20.0" type="double"/>
     <!-- 权重类型选择 -->
     <param name="heading_planner/weight_type" value="1" type="double"/>
 
@@ -238,7 +238,7 @@
     <!-- 局部轨迹段长度（米） -->
     <param name="manager/local_segment_length" value="6.0" type="double"/>
     <!-- 安全间隙阈值（米）- 与障碍物的最小距离 -->
-    <param name="manager/clearance_threshold" value="0.4" type="double"/>
+    <param name="manager/clearance_threshold" value="0.35" type="double"/>
     <!-- 控制点距离（米）- B样条控制点间距 -->
     <param name="manager/control_points_distance" value="0.35" type="double"/>
     

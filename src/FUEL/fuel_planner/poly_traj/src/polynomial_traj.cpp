@@ -1,5 +1,6 @@
 #include <iostream>
 #include <poly_traj/polynomial_traj.h>
+#include <ros/ros.h>
 
 namespace fast_planner {
 void PolynomialTraj::waypointsTraj(const Eigen::MatrixXd& positions, const Eigen::Vector3d& start_vel,
@@ -7,6 +8,43 @@ void PolynomialTraj::waypointsTraj(const Eigen::MatrixXd& positions, const Eigen
                                    const Eigen::Vector3d& end_acc, const Eigen::VectorXd& times,
                                    PolynomialTraj& poly_traj) {
   const int seg_num = times.size();
+  const int point_num = positions.rows();  
+
+  // ==================== 🛡️ 核心防御性代码（已修正顺序） ====================
+  
+  // ✅ 1. 基础尺寸验证（必须最先执行！防止 times 为空时调用 minCoeff() 引发 Eigen 崩溃）
+  // 提示：该最低阶 Minimum Jerk 闭式解优化算法要求至少 2 段轨迹（3个点）才能构建有效的中间自由变量矩阵
+  if (seg_num < 2 || point_num < 3) {
+    ROS_WARN("[PolynomialTraj] Inputs too short for optimization! seg_num: %d, point_num: %d. Skipping trajectory generation.", 
+              seg_num, point_num);
+    poly_traj.reset();
+    return;
+  }
+  
+  // ✅ 2. 验证坐标维度（必须是 3 维空间的点：x, y, z）
+  if (positions.cols() != 3) {
+    ROS_ERROR("[PolynomialTraj] positions cols (axes) should be 3, but got %ld. Skipping trajectory generation.", 
+              positions.cols());
+    poly_traj.reset();
+    return;
+  }
+  
+  // ✅ 3. 验证时间段数与航点数目的数学对应关系（段数必须等于点数-1）
+  if (seg_num != point_num - 1) {
+    ROS_ERROR("[PolynomialTraj] Mismatch size! seg_num(%d) must equal point_num-1(%d). Skipping trajectory generation.", 
+              seg_num, point_num - 1);
+    poly_traj.reset();
+    return; 
+  }
+  
+  // ✅ 4. 验证时间有效性（此时已知 seg_num >= 2，可安全执行 minCoeff() 检查）
+  if (times.minCoeff() <= 1e-5) {
+    ROS_ERROR("[PolynomialTraj] Invalid time duration detected: min time = %f. Skipping trajectory generation.", 
+              times.minCoeff());
+    poly_traj.reset();
+    return;
+  }
+  // =============================================================
 
   // Helper to construct the mapping matrix
   const static auto Factorial = [](int x) {
@@ -152,26 +190,7 @@ void PolynomialTraj::waypointsTraj(const Eigen::MatrixXd& positions, const Eigen
   for (int i = 0; i < seg_num; i++) {
     Polynomial poly(Px.segment<6>(i * 6), Py.segment<6>(i * 6), Pz.segment<6>(i * 6), times[i]);
     poly_traj.addSegment(poly);
-    // poly_coeff.block(i, 0, 1, 6) = ;
-    // poly_coeff.block(i, 6, 1, 6) = Py.segment(i * 6, 6).transpose();
-    // poly_coeff.block(i, 12, 1, 6) = Pz.segment(i * 6, 6).transpose();
   }
-
-  // for (int i = 0; i < poly_coeff.rows(); ++i)
-  // {
-  //   vector<double> cx(6), cy(6), cz(6);
-  //   for (int j = 0; j < 6; ++j)
-  //   {
-  //     cx[j] = poly_coeff(i, j), cy[j] = poly_coeff(i, j + 6), cz[j] = poly_coeff(i, j + 12);
-  //   }
-  //   reverse(cx.begin(), cx.end());
-  //   reverse(cy.begin(), cy.end());
-  //   reverse(cz.begin(), cz.end());
-  //   double ts = times(i);
-  //   poly_traj.addSegment(cx, cy, cz, ts);
-  // }
-
-  // return poly_traj;
 }
 
 // PolynomialTraj fastLine4deg(Eigen::Vector3d start, Eigen::Vector3d end, double max_vel, double

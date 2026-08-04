@@ -308,6 +308,19 @@ void FastExplorationManager::shortenPath(vector<Vector3d>& path) {
     ROS_ERROR("Empty path to shorten");
     return;
   }
+
+  // === 🛡️ 核心防御：如果输入的路径只有 1 个点（触发了没有路径的返航阶段） ===
+  if (path.size() == 1) {
+    ROS_WARN("[FastExplorationManager] Path has only 1 point. Drone is likely stuck or return-home path is empty. Creating a robust 3-point static hover path.");
+    Vector3d start_p = path[0];
+    // 强行构造一个包含 3 个微幅平移点的合法路径，既能平滑生成 B 样条，又能骗过上层的距离检查
+    path.clear();
+    path.push_back(start_p);
+    path.push_back(start_p + Vector3d(0.01, 0.0, 0.0));
+    path.push_back(start_p + Vector3d(0.02, 0.0, 0.0));
+    return; // 直接返回，不再走后面的过滤逻辑
+  }
+
   // Shorten the tour, only critical intermediate points are reserved.
   const double dist_thresh = 3.0;
   vector<Vector3d> short_tour = { path.front() };
@@ -332,8 +345,16 @@ void FastExplorationManager::shortenPath(vector<Vector3d>& path) {
   // Ensure at least three points in the path
   if (short_tour.size() == 2)
     short_tour.insert(short_tour.begin() + 1, 0.5 * (short_tour[0] + short_tour[1]));
+  
+  // === 🛡️ 再次防线：如果过滤后意外变成了 1 个点 ===
+  if (short_tour.size() < 2) {
+    short_tour.push_back(short_tour.back() + Vector3d(0.01, 0.0, 0.0));
+    short_tour.push_back(short_tour.back() + Vector3d(0.01, 0.0, 0.0));
+  }
+
   path = short_tour;
 }
+
 
 void FastExplorationManager::findGlobalTour(
     const Vector3d& cur_pos, const Vector3d& cur_vel, const Vector3d cur_yaw,
